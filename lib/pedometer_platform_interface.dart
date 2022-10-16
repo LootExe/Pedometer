@@ -26,4 +26,8 @@ abstract class PedometerPlatform extends PlatformInterface {
   Future<String?> getPlatformVersion() {
     throw UnimplementedError('platformVersion() has not been implemented.');
   }
+
+  Future<int?> getStepCount() {
+    throw UnimplementedError('getStepCount() has not been implemented.');
+  }
 }

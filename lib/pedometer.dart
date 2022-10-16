@@ -4,4 +4,8 @@ class Pedometer {
   Future<String?> getPlatformVersion() {
     return PedometerPlatform.instance.getPlatformVersion();
   }
+
+  Future<int?> getStepCount() {
+    return PedometerPlatform.instance.getStepCount();
+  }
 }
