@@ -15,7 +15,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  int _lastStepCount = 0;
   int _stepsFromStream = 0;
   late StreamSubscription _stepCountStream;
 
@@ -27,10 +26,6 @@ class _MyAppState extends State<MyApp> {
 
   // Platform messages are asynchronous, so we initialize in an async method.
   Future<void> initPlatformState() async {
-    print('TimeNow: ${DateTime.now()}');
-    int stepCount = await Pedometer.getLastStepCount();
-    print('TimeNow: ${DateTime.now()}');
-
     _stepCountStream = Pedometer.getStepCountStream().listen((steps) {
       setState(() {
         _stepsFromStream = steps;
@@ -38,14 +33,6 @@ class _MyAppState extends State<MyApp> {
     }, onError: (error) {
       print('[ERROR] $error');
       _stepsFromStream = -1;
-    });
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
-
-    setState(() {
-      _lastStepCount = stepCount;
     });
   }
 
@@ -63,8 +50,7 @@ class _MyAppState extends State<MyApp> {
           title: const Text('Pedometer example app'),
         ),
         body: Center(
-          child: Text(
-              'Last Step count: $_lastStepCount\nSteps Stream: $_stepsFromStream'),
+          child: Text('Step Count: $_stepsFromStream'),
         ),
       ),
     );
