@@ -8,7 +8,7 @@ import android.hardware.SensorManager
 import io.flutter.plugin.common.EventChannel
 
 class SensorHandler(context: Context) : EventChannel.StreamHandler, SensorEventListener {
-    private var sensorManager: SensorManager
+    private val sensorManager: SensorManager
     private var sensor: Sensor? = null
     private var eventSink: EventChannel.EventSink? = null
 

@@ -6,15 +6,13 @@ import io.flutter.plugin.common.EventChannel
 /** PedometerPlugin */
 class PedometerPlugin: FlutterPlugin {
   private lateinit var eventChannel: EventChannel
-  private lateinit var sensorHandler: SensorHandler
 
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-    sensorHandler = SensorHandler(flutterPluginBinding.applicationContext)
-
     eventChannel = EventChannel(flutterPluginBinding.binaryMessenger,
       "com.lootexe.pedometer.event")
 
-    eventChannel.setStreamHandler(sensorHandler)
+    val handler = SensorHandler(flutterPluginBinding.applicationContext)
+    eventChannel.setStreamHandler(handler)
   }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
