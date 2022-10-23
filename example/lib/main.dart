@@ -18,22 +18,33 @@ class _MyAppState extends State<MyApp> {
   int _stepsFromStream = 0;
   late StreamSubscription _stepCountStream;
 
+  void _onListen(int steps) {
+    setState(() {
+      _stepsFromStream = steps;
+    });
+  }
+
+  void _onError(dynamic error) {
+    print('Pedometer error: $error');
+
+    setState(() {
+      _stepsFromStream = -1;
+    });
+  }
+
+  void _initPlatformState() {
+    const config = SensorConfiguration(batchingInterval: Duration(minutes: 5));
+
+    _stepCountStream = Pedometer.getStepCountStream(config).listen(
+      _onListen,
+      onError: _onError,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
-    initPlatformState();
-  }
-
-  // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    _stepCountStream = Pedometer.getStepCountStream().listen((steps) {
-      setState(() {
-        _stepsFromStream = steps;
-      });
-    }, onError: (error) {
-      print('[ERROR] $error');
-      _stepsFromStream = -1;
-    });
+    _initPlatformState();
   }
 
   @override
@@ -48,6 +59,7 @@ class _MyAppState extends State<MyApp> {
       home: Scaffold(
         appBar: AppBar(
           title: const Text('Pedometer example app'),
+          centerTitle: true,
         ),
         body: Center(
           child: Text('Step Count: $_stepsFromStream'),
