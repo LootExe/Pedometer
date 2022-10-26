@@ -7,9 +7,11 @@ class Pedometer {
   static const _eventChannel =
       EventChannel('com.lootexe.pedometer.sensor', JSONMethodCodec());
 
-  static Stream<int> getStepCountStream(SensorConfiguration configuration) {
+  static Stream<int> getStepCountStream(SensorConfiguration? configuration) {
+    final config = configuration ??
+        const SensorConfiguration(batchingInterval: Duration());
     return _eventChannel
-        .receiveBroadcastStream(configuration.toJson())
+        .receiveBroadcastStream(config.toJson())
         .map((event) => event['stepCount']);
   }
 }
@@ -21,10 +23,7 @@ class SensorConfiguration {
 
   final Duration batchingInterval;
 
-  Map toJson() {
-    Map json = {
-      'batching': max(batchingInterval.inMilliseconds, 100),
-    };
-    return json;
-  }
+  Map toJson() => {
+        'batching': max(batchingInterval.inMilliseconds, 100),
+      };
 }
