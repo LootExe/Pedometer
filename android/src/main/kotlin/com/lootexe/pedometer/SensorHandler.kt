@@ -28,21 +28,11 @@ class SensorHandler(context: Context,
     }
 
     override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
-        if (arguments == null) {
-            events.error("-1","No arguments specified", "")
-            return
-        }
-
-        var config: SensorConfiguration? = null
-
-        try {
-           config = SensorConfiguration.fromJson(arguments as JSONObject)
-        }
-        catch (e: JSONException) {
-            events.error("-1","error", "JSON error: " + e.message)
-        }
+        val config = parseConfiguration(arguments)
 
         if (config == null) {
+            events.error("-1","Config parse error",
+                "Couldn't parse sensor configuration json")
             return
         }
 
@@ -53,16 +43,16 @@ class SensorHandler(context: Context,
         }
 
         sensorListener = object : SensorEventListener {
-            override fun onSensorChanged(p0: SensorEvent?) {
-                if (p0 == null) {
-                    return
-                }
+            override fun onSensorChanged(sensorEvent: SensorEvent?) {
+                sensorEvent ?: return
 
-                val json = JSONObject().apply {
-                    put("stepCount", p0.values[0].toInt())
-                }
+                sensorEvent.values.firstOrNull()?.let {
+                    val json = JSONObject().apply {
+                        put("stepCount", it.toInt())
+                    }
 
-                events.success(json)
+                    events.success(json)
+                }
             }
 
             override fun onAccuracyChanged(p0: Sensor?, p1: Int) {}
@@ -77,6 +67,16 @@ class SensorHandler(context: Context,
 
     override fun onCancel(arguments: Any?) {
         sensorManager.unregisterListener(sensorListener)
+    }
+
+    private fun parseConfiguration(arguments: Any?): SensorConfiguration? {
+        arguments ?: return null
+
+        return try {
+            SensorConfiguration.fromJson(arguments as JSONObject)
+        } catch (e: JSONException) {
+            null
+        }
     }
 
     fun dispose() {
