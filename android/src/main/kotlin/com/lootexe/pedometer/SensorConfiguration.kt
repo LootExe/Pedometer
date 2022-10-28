@@ -2,12 +2,14 @@ package com.lootexe.pedometer
 
 import org.json.JSONObject
 
-data class SensorConfiguration(val batchingInterval: Int) {
+data class SensorConfiguration(val samplingRate: Int,
+                               val batchingInterval: Int) {
     companion object {
         fun fromJson(json: JSONObject): SensorConfiguration {
-            val interval = json.getInt("batching")
+            val samplingRate = json.getInt("samplingRate")
+            val batching = json.getInt("batchingInterval")
 
-            return SensorConfiguration(interval)
+            return SensorConfiguration(samplingRate, batching)
         }
     }
 }
