@@ -61,7 +61,7 @@ class SensorHandler(context: Context,
         sensorManager.registerListener(
             sensorListener,
             sensor,
-            SensorManager.SENSOR_DELAY_NORMAL,
+            config.samplingRate,
             config.batchingInterval)
     }
 
