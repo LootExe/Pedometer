@@ -33,7 +33,10 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _initPlatformState() {
-    const config = SensorConfiguration(batchingInterval: Duration(minutes: 5));
+    const config = SensorConfiguration(
+      samplingRate: SamplingRate.fastest,
+      batchingInterval: Duration(seconds: 10),
+    );
 
     _stepCountStream = Pedometer.getStepCountStream(config).listen(
       _onListen,
