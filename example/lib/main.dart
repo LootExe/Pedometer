@@ -38,7 +38,8 @@ class _MyAppState extends State<MyApp> {
       batchingInterval: Duration(seconds: 10),
     );
 
-    _stepCountStream = Pedometer.getStepCountStream(config).listen(
+    _stepCountStream =
+        Pedometer.getStepCountStream(configuration: config).listen(
       _onListen,
       onError: _onError,
     );

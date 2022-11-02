@@ -19,10 +19,10 @@ class Pedometer {
   /// [configuration] sets the sensor configuration. If none is specified,
   /// the default configuration is being used ([SamplingRate.normal] and zero
   /// batching)
-  static Stream<int> getStepCountStream(SensorConfiguration? configuration) {
-    final config = configuration ?? const SensorConfiguration();
+  static Stream<int> getStepCountStream(
+      {SensorConfiguration configuration = const SensorConfiguration()}) {
     return _eventChannel
-        .receiveBroadcastStream(config.toJson())
+        .receiveBroadcastStream(configuration.toJson())
         .map((event) => event['stepCount']);
   }
 }
