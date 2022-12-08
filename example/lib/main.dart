@@ -16,7 +16,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   int _stepsFromStream = 0;
-  late StreamSubscription _stepCountStream;
+  StreamSubscription? _stepCountStream;
 
   void _onListen(int steps) {
     setState(() {
@@ -32,17 +32,26 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  void _initPlatformState() {
-    const config = SensorConfiguration(
-      samplingRate: SamplingRate.fastest,
-      batchingInterval: Duration(seconds: 10),
-    );
+  Future<void> _initPlatformState() async {
+    const config = SensorConfiguration(samplingRate: SamplingRate.ui);
+    bool result = false;
 
-    _stepCountStream =
-        Pedometer.getStepCountStream(configuration: config).listen(
-      _onListen,
-      onError: _onError,
-    );
+    try {
+      result = await Pedometer.initialize(configuration: config);
+      print('Pedometer initialized');
+    } catch (e) {
+      print('Pedometer error: ${e.toString()}');
+    }
+
+    if (result) {
+      final lastStepCount = await Pedometer.getStepCount();
+      print('Pedometer last step count = $lastStepCount');
+
+      _stepCountStream = Pedometer.getStepCountStream().listen(
+        _onListen,
+        onError: _onError,
+      );
+    }
   }
 
   @override
@@ -52,8 +61,10 @@ class _MyAppState extends State<MyApp> {
   }
 
   @override
-  void dispose() {
-    _stepCountStream.cancel();
+  void dispose() async {
+    _stepCountStream?.cancel();
+    await Pedometer.dispose();
+
     super.dispose();
   }
 
