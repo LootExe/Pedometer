@@ -3,26 +3,60 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 class Pedometer {
+  static const _methodChannel =
+      MethodChannel('com.lootexe.pedometer.method', JSONMethodCodec());
   static const _eventChannel =
-      EventChannel('com.lootexe.pedometer.sensor', JSONMethodCodec());
+      EventChannel('com.lootexe.pedometer.event', JSONMethodCodec());
 
-  /// Returns a stream that receives steps events.
-  /// As soon as the sensor is registered in the plugin, this stream returns
-  /// the last step count [int] since boot of the Android system.
-  ///
-  /// The value is reset to zero on every reboot
-  ///
-  /// The sensor does not report steps when being called from a background task.
-  /// If you need to call this sensor from a background task, like Alarm Manager,
-  /// the App needs to implement a foreground service.
+  static bool isInitialized = false;
+
+  /// Registers a SensorListener with the SensorManager
+  /// Returns true if the sensor hardware exists and could be registered
   ///
   /// [configuration] sets the sensor configuration. If none is specified,
   /// the default configuration is being used ([SamplingRate.normal] and zero
   /// batching)
-  static Stream<int> getStepCountStream(
-      {SensorConfiguration configuration = const SensorConfiguration()}) {
+  static Future<bool> initialize(
+      {SensorConfiguration configuration = const SensorConfiguration()}) async {
+    try {
+      final result = await _methodChannel.invokeMethod<bool>(
+          'registerSensor', configuration.toJson());
+
+      isInitialized = result ?? false;
+      return isInitialized;
+    } on PlatformException catch (e) {
+      throw SensorError(e.message);
+    }
+  }
+
+  /// Unregisters the sensor from the SensorManager and stops listening
+  /// to step events
+  static Future<void> dispose() async {
+    await _methodChannel.invokeMethod('unregisterSensor');
+  }
+
+  /// Returns the last step count [int] while the sensor was active
+  static Future<int> getStepCount() async {
+    if (!isInitialized) {
+      throw SensorError('Not initialized');
+    }
+
+    return await _methodChannel.invokeMethod<int>('stepCount') ?? -1;
+  }
+
+  /// Returns a stream that receives step events.
+  ///
+  /// While the sensor is registered, this stream returns
+  /// the step count [int] since boot of the Android system.
+  ///
+  /// The value is reset to zero on every reboot
+  static Stream<int> getStepCountStream() {
+    if (!isInitialized) {
+      throw SensorError('Not initialized');
+    }
+
     return _eventChannel
-        .receiveBroadcastStream(configuration.toJson())
+        .receiveBroadcastStream()
         .map((event) => event['stepCount']);
   }
 }
@@ -70,4 +104,19 @@ enum SamplingRate {
 
   const SamplingRate(this.value);
   final int value;
+}
+
+class SensorException implements Exception {}
+
+class SensorError extends Error {
+  SensorError([this.message]);
+
+  /// Message describing the problem.
+  final dynamic message;
+
+  @override
+  String toString() {
+    Object? message = this.message;
+    return (message == null) ? '' : '$message';
+  }
 }
