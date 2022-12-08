@@ -9,64 +9,83 @@ import android.hardware.SensorManager
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.JSONMethodCodec
+import io.flutter.plugin.common.MethodChannel
 import org.json.JSONException
 import org.json.JSONObject
 
 class SensorHandler(context: Context,
-                    messenger: BinaryMessenger): EventChannel.StreamHandler {
+                    messenger: BinaryMessenger): EventChannel.StreamHandler, SensorEventListener {
     private val eventChannel: EventChannel
     private val sensorManager: SensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-    private var sensor: Sensor? = null
-    private var sensorListener: SensorEventListener? = null
+    private var eventSink: EventChannel.EventSink? = null
+    var stepCount: Int = 0
 
     init {
         eventChannel = EventChannel(messenger,
-            "com.lootexe.pedometer.sensor", JSONMethodCodec.INSTANCE)
+            "com.lootexe.pedometer.event", JSONMethodCodec.INSTANCE)
         eventChannel.setStreamHandler(this)
-
-        sensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
     }
 
-    override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
+    fun registerSensor(arguments: Any?, result: MethodChannel.Result) {
+        unregisterSensor()
+
+        val sensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
         val config = parseConfiguration(arguments)
 
-        if (config == null) {
-            events.error("-1","Config parse error",
-                "Couldn't parse sensor configuration json")
-            return
-        }
-
         if (sensor == null) {
-            events.error("-1","Sensor not available",
-                "No pedometer hardware found on this device")
+            result.error("Sensor error",
+                "No pedometer hardware found on this device", null)
             return
         }
 
-        sensorListener = object : SensorEventListener {
-            override fun onSensorChanged(sensorEvent: SensorEvent?) {
-                sensorEvent ?: return
-
-                sensorEvent.values.firstOrNull()?.let {
-                    val json = JSONObject().apply {
-                        put("stepCount", it.toInt())
-                    }
-
-                    events.success(json)
-                }
-            }
-
-            override fun onAccuracyChanged(p0: Sensor?, p1: Int) {}
+        if (config == null) {
+            result.error("Config error",
+                "Couldn't parse sensor configuration json", null)
+            return
         }
 
-        sensorManager.registerListener(
-            sensorListener,
+        val isRegistered = sensorManager.registerListener(
+            this,
             sensor,
             config.samplingRate,
             config.batchingInterval)
+
+        result.success(isRegistered)
+    }
+
+    fun unregisterSensor() {
+        sensorManager.unregisterListener(this)
+    }
+
+    fun dispose() {
+        unregisterSensor()
+        eventChannel.setStreamHandler(null)
+        eventSink = null
+        stepCount = 0
+    }
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        event ?: return
+
+        event.values.firstOrNull()?.let {
+            stepCount = it.toInt()
+            eventSink?.success(JSONObject().apply {
+                put("stepCount", stepCount)
+            })
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
+    override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
+        eventSink = events
+        eventSink?.success(JSONObject().apply {
+            put("stepCount", stepCount)
+        })
     }
 
     override fun onCancel(arguments: Any?) {
-        sensorManager.unregisterListener(sensorListener)
+        eventSink = null
     }
 
     private fun parseConfiguration(arguments: Any?): SensorConfiguration? {
@@ -77,9 +96,5 @@ class SensorHandler(context: Context,
         } catch (e: JSONException) {
             null
         }
-    }
-
-    fun dispose() {
-        eventChannel.setStreamHandler(null)
     }
 }
