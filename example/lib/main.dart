@@ -3,68 +3,82 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pedometer/pedometer.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+void main() => runApp(const PedometerApp());
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+class PedometerApp extends StatefulWidget {
+  const PedometerApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  State<PedometerApp> createState() => _PedometerAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _PedometerAppState extends State<PedometerApp> {
+  int _stepsFromCall = 0;
   int _stepsFromStream = 0;
   StreamSubscription? _stepCountStream;
+  String _sensorStatus = 'Unregistered';
 
-  void _onListen(int steps) {
-    setState(() {
-      _stepsFromStream = steps;
-    });
-  }
+  final _config = const SensorConfiguration(
+    samplingRate: SamplingRate.ui,
+    batchingInterval: Duration(seconds: 1),
+  );
 
-  void _onError(dynamic error) {
-    print('Pedometer error: $error');
+  SnackBar _buildSnackBar(String text) => SnackBar(content: Text(text));
 
-    setState(() {
-      _stepsFromStream = -1;
-    });
-  }
+  Future<void> _registerSensor(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
 
-  Future<void> _initPlatformState() async {
-    const config = SensorConfiguration(samplingRate: SamplingRate.ui);
-    bool result = false;
-
-    try {
-      result = await Pedometer.initialize(configuration: config);
-      print('Pedometer initialized');
-    } catch (e) {
-      print('Pedometer error: ${e.toString()}');
+    if (await Pedometer.isRegistered) {
+      messenger.showSnackBar(_buildSnackBar('Sensor already registered'));
+      return;
     }
 
-    if (result) {
-      final lastStepCount = await Pedometer.getStepCount();
-      print('Pedometer last step count = $lastStepCount');
+    final success = await Pedometer.registerSensor(
+      configuration: _config,
+    );
 
-      _stepCountStream = Pedometer.getStepCountStream().listen(
-        _onListen,
-        onError: _onError,
-      );
+    if (!success) {
+      messenger.showSnackBar(_buildSnackBar('Sensor registration failed'));
+      _sensorStatus = 'Failure';
+      return;
     }
+
+    _sensorStatus = 'Registered';
+    _stepsFromCall = await Pedometer.getStepCount();
+
+    _stepCountStream = Pedometer.getStepCountStream().listen(
+      (int steps) {
+        setState(() => _stepsFromStream = steps);
+      },
+      onError: (dynamic error) {
+        print('Pedometer error: $error');
+        setState(() => _stepsFromStream = -1);
+      },
+    );
+
+    messenger.showSnackBar(_buildSnackBar('Sensor registered'));
+    setState(() {});
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _initPlatformState();
-  }
+  Future<void> _unregisterSensor(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
 
-  @override
-  void dispose() async {
+    if (await Pedometer.isRegistered == false) {
+      messenger.showSnackBar(_buildSnackBar('Sensor already unregistered'));
+      return;
+    }
+
     _stepCountStream?.cancel();
-    await Pedometer.dispose();
+    await Pedometer.unregisterSensor();
+    _sensorStatus = 'Unregistered';
 
+    messenger.showSnackBar(_buildSnackBar('Sensor unregistred'));
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _unregisterSensor(context);
     super.dispose();
   }
 
@@ -73,11 +87,32 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Pedometer example app'),
+          title: const Text('Pedometer Example App'),
           centerTitle: true,
         ),
-        body: Center(
-          child: Text('Step Count: $_stepsFromStream'),
+        body: Builder(
+          builder: (context) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Spacer(),
+                ElevatedButton(
+                  onPressed: () => _registerSensor(context),
+                  child: const Text('Register Sensor'),
+                ),
+                ElevatedButton(
+                  onPressed: () => _unregisterSensor(context),
+                  child: const Text('Unregister Sensor'),
+                ),
+                const Spacer(),
+                Text('Last Step Count : $_stepsFromCall'),
+                Text('Step Count Stream : $_stepsFromStream'),
+                const Spacer(),
+                Text('Sensor Status : $_sensorStatus'),
+                const Spacer(),
+              ],
+            ),
+          ),
         ),
       ),
     );
