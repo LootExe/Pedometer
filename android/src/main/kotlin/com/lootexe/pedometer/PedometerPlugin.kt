@@ -34,6 +34,7 @@ class PedometerPlugin: FlutterPlugin, MethodChannel.MethodCallHandler {
         sensorHandler?.unregisterSensor()
         result.success(true)
       }
+      "isRegistered" -> result.success(sensorHandler?.isRegistered)
       "stepCount" -> result.success(sensorHandler?.stepCount)
       else -> result.notImplemented()
     }

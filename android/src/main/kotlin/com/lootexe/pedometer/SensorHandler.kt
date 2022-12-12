@@ -18,7 +18,9 @@ class SensorHandler(context: Context,
     private val eventChannel: EventChannel
     private val sensorManager: SensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private var eventSink: EventChannel.EventSink? = null
+
     var stepCount: Int = 0
+    var isRegistered: Boolean = false
 
     init {
         eventChannel = EventChannel(messenger,
@@ -44,7 +46,7 @@ class SensorHandler(context: Context,
             return
         }
 
-        val isRegistered = sensorManager.registerListener(
+        isRegistered = sensorManager.registerListener(
             this,
             sensor,
             config.samplingRate,
@@ -55,6 +57,7 @@ class SensorHandler(context: Context,
 
     fun unregisterSensor() {
         sensorManager.unregisterListener(this)
+        isRegistered = false
     }
 
     fun dispose() {
