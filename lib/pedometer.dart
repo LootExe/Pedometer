@@ -8,37 +8,60 @@ class Pedometer {
   static const _eventChannel =
       EventChannel('com.lootexe.pedometer.event', JSONMethodCodec());
 
-  static bool isInitialized = false;
+  /// Returns a [Future] of [bool] that resolves to true
+  /// if the sensor is registered with the SensorManager.
+  static Future<bool> get isRegistered async =>
+      await _methodChannel.invokeMethod<bool>('isRegistered') ?? false;
 
-  /// Registers a SensorListener with the SensorManager
-  /// Returns true if the sensor hardware exists and could be registered
+  /// Registers the sensor with the SensorManager.
+  ///
+  /// Returns a [Future] of [bool] if the sensor hardware exists
+  /// and is succesfully registered.
   ///
   /// [configuration] sets the sensor configuration. If none is specified,
   /// the default configuration is being used ([SamplingRate.normal] and zero
   /// batching)
-  static Future<bool> initialize(
-      {SensorConfiguration configuration = const SensorConfiguration()}) async {
+  static Future<bool> registerSensor({
+    SensorConfiguration configuration = const SensorConfiguration(),
+  }) async {
+    if (await isRegistered) {
+      return true;
+    }
+
     try {
       final result = await _methodChannel.invokeMethod<bool>(
           'registerSensor', configuration.toJson());
 
-      isInitialized = result ?? false;
-      return isInitialized;
+      return result ?? false;
     } on PlatformException catch (e) {
       throw SensorError(e.message);
     }
   }
 
   /// Unregisters the sensor from the SensorManager and stops listening
-  /// to step events
-  static Future<void> dispose() async {
-    await _methodChannel.invokeMethod('unregisterSensor');
+  /// to step events.
+  ///
+  /// Returns a [Future] of [bool] if the sensor is succesfully unregistered.
+  static Future<bool> unregisterSensor() async {
+    if (await isRegistered == false) {
+      return true;
+    }
+
+    try {
+      final result =
+          await _methodChannel.invokeMethod<bool>('unregisterSensor');
+
+      return result ?? false;
+    } on PlatformException catch (e) {
+      throw SensorError(e.message);
+    }
   }
 
-  /// Returns the last step count [int] while the sensor was active
+  /// Returns a [Future] of [int] that resolves to the last step count
+  /// while the sensor was registered.
   static Future<int> getStepCount() async {
-    if (!isInitialized) {
-      throw SensorError('Not initialized');
+    if (await isRegistered == false) {
+      throw SensorError('Sensor not registered');
     }
 
     return await _methodChannel.invokeMethod<int>('stepCount') ?? -1;
@@ -50,15 +73,8 @@ class Pedometer {
   /// the step count [int] since boot of the Android system.
   ///
   /// The value is reset to zero on every reboot
-  static Stream<int> getStepCountStream() {
-    if (!isInitialized) {
-      throw SensorError('Not initialized');
-    }
-
-    return _eventChannel
-        .receiveBroadcastStream()
-        .map((event) => event['stepCount']);
-  }
+  static Stream<int> getStepCountStream() =>
+      _eventChannel.receiveBroadcastStream().map((event) => event['stepCount']);
 }
 
 /// A data class that holds the sensor configuration for the Step Count sensor.
@@ -105,8 +121,6 @@ enum SamplingRate {
   const SamplingRate(this.value);
   final int value;
 }
-
-class SensorException implements Exception {}
 
 class SensorError extends Error {
   SensorError([this.message]);
