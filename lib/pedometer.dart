@@ -8,6 +8,8 @@ class Pedometer {
   static const _eventChannel =
       EventChannel('com.lootexe.pedometer.event', JSONMethodCodec());
 
+  static const int sensorError = -1;
+
   /// Returns a [Future] of [bool] that resolves to true
   /// if the sensor is registered with the SensorManager.
   static Future<bool> get isRegistered async =>
@@ -33,8 +35,8 @@ class Pedometer {
           'registerSensor', configuration.toJson());
 
       return result ?? false;
-    } on PlatformException catch (e) {
-      throw SensorError(e.message);
+    } on PlatformException {
+      return false;
     }
   }
 
@@ -52,8 +54,8 @@ class Pedometer {
           await _methodChannel.invokeMethod<bool>('unregisterSensor');
 
       return result ?? false;
-    } on PlatformException catch (e) {
-      throw SensorError(e.message);
+    } on PlatformException {
+      return false;
     }
   }
 
@@ -61,10 +63,10 @@ class Pedometer {
   /// while the sensor was registered.
   static Future<int> getStepCount() async {
     if (await isRegistered == false) {
-      throw SensorError('Sensor not registered');
+      return sensorError;
     }
 
-    return await _methodChannel.invokeMethod<int>('stepCount') ?? -1;
+    return await _methodChannel.invokeMethod<int>('stepCount') ?? sensorError;
   }
 
   /// Returns a stream that receives step events.
@@ -120,17 +122,4 @@ enum SamplingRate {
 
   const SamplingRate(this.value);
   final int value;
-}
-
-class SensorError extends Error {
-  SensorError([this.message]);
-
-  /// Message describing the problem.
-  final dynamic message;
-
-  @override
-  String toString() {
-    Object? message = this.message;
-    return (message == null) ? '' : '$message';
-  }
 }
